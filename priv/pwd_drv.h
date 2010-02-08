@@ -49,7 +49,9 @@ make_passwd (pwd_drv_t *drv,
   size_t *count);
 
 static void
-fill_passwd (ErlDrvTermData *data, struct passwd *pwd);
+fill_passwd (ErlDrvTermData *data, struct passwd *pwd,
+             char **name,
+             char **passwd);
 
 static size_t 
 passwd_term_count ();

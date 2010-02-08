@@ -90,10 +90,6 @@ control (ErlDrvData p,
   if (len)
     buf[len] = 0;
 
-  fprintf (drv->log, "cmd: %d\n", command);
-  fprintf (drv->log, "buf: %s\n", buf);
-  fflush (drv->log);
-
   switch (command)
     {
     case CMD_GET_PWUID:
@@ -187,45 +183,39 @@ get_pwnam (pwd_drv_t *drv, char *cmd)
 static int
 get_pwall (pwd_drv_t *drv)
 {
+  size_t pwd_count = 0;
   setpwent ();
+  while (getpwent ())
+    pwd_count++;
+  endpwent ();
 
-  ErlDrvTermData *result = (ErlDrvTermData *) driver_alloc (sizeof (ErlDrvTermData) * passwd_term_count ());
+  size_t term_count = passwd_term_count ();
+  size_t result_count = pwd_count * term_count;
+  ErlDrvTermData *result = (ErlDrvTermData *) driver_alloc (sizeof (ErlDrvTermData) * (result_count + 3));
   if (!result)
     {
       fprintf (drv->log, "Couldn't allocate memory for result\n");
       fflush (drv->log);
 
-      endpwent ();
-
       return send_error (drv, "error", "Couldn't allocate memory for result");
     }
 
-  size_t pwd_count = 0;
-  size_t result_count = 0;
+  char **names = (char **) driver_alloc (sizeof (char *) * pwd_count);
+  char **pwds  = (char **) driver_alloc (sizeof (char *) * pwd_count);
+
+  setpwent ();
+
+  size_t result_idx = 0;
   struct passwd *pwd = getpwent ();
   while (pwd)
     {
-      fill_passwd (&result[pwd_count * passwd_term_count ()], pwd);
-      result_count += passwd_term_count ();
-      pwd_count++;
-
-      result = (ErlDrvTermData *) driver_realloc (result, sizeof (ErlDrvTermData) * (result_count + passwd_term_count ()));
-      if (!result)
-        {
-          fprintf (drv->log, "Couldn't reallocate memory for result\n");
-          fflush (drv->log);
-
-          endpwent ();
-
-          return send_error (drv, "error","Couldn't reallocate memory for result");
-        }
+      fill_passwd (&result[result_idx * term_count], pwd, &names[result_idx], &pwds[result_idx]);
+      result_idx++;
 
       pwd = getpwent ();
     }
 
   endpwent ();
-
-  result = (ErlDrvTermData *) driver_realloc (result, sizeof (ErlDrvTermData) * (result_count + 3));
 
   result[result_count++] = ERL_DRV_NIL;
   result[result_count++] = ERL_DRV_LIST;
@@ -235,6 +225,15 @@ get_pwall (pwd_drv_t *drv)
                               result,
                               result_count);
 
+  size_t i = 0;
+  for (; i < pwd_count; ++i)
+    {
+      driver_free (pwds[i]);
+      driver_free (names[i]);
+    }
+
+  driver_free (pwds);
+  driver_free (names);
   driver_free (result);
   return r;
 }
@@ -253,17 +252,41 @@ make_passwd (pwd_drv_t *drv, struct passwd *pwd, size_t *count)
       return 0;
     }
 
-  fill_passwd (result, pwd);
+  fill_passwd (result, pwd, 0, 0);
   return result;
 }
 
 static void
-fill_passwd (ErlDrvTermData *data, struct passwd *pwd)
+fill_passwd (ErlDrvTermData *data, struct passwd *pwd,
+             char **name,
+             char **passwd)
 {
+  char *pw_name = pwd->pw_name;
+  char *pw_passwd = pwd->pw_passwd;
+
+  size_t len_name = strlen (pw_name);
+  size_t len_passwd = strlen (pw_passwd);
+
+  if (name)
+    {
+      *name = (char *) driver_alloc (sizeof (char) * (len_name + 1));
+      memcpy (*name, pw_name, sizeof (char) * (len_name + 1));
+
+      pw_name = *name;
+    }
+
+  if (passwd)
+    {
+      *passwd = (char *) driver_alloc (sizeof (char *) * (len_passwd + 1));
+      memcpy (*passwd, pw_passwd, sizeof (char) * (len_passwd + 1));
+
+      pw_passwd = *passwd;
+    }
+
   *data++ = ERL_DRV_ATOM;
   *data++ = driver_mk_atom ("pw_name");
   *data++ = ERL_DRV_STRING;
-  *data++ = (ErlDrvTermData) pwd->pw_name;
+  *data++ = (ErlDrvTermData) pw_name;
   *data++ = strlen (pwd->pw_name);
   *data++ = ERL_DRV_TUPLE;
   *data++ = 2;
@@ -271,7 +294,7 @@ fill_passwd (ErlDrvTermData *data, struct passwd *pwd)
   *data++ = ERL_DRV_ATOM;
   *data++ = driver_mk_atom ("pw_passwd");
   *data++ = ERL_DRV_STRING;
-  *data++ = (ErlDrvTermData) pwd->pw_passwd;
+  *data++ = (ErlDrvTermData) pw_passwd;
   *data++ = strlen (pwd->pw_name);
   *data++ = ERL_DRV_TUPLE;
   *data++ = 2;
