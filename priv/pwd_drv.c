@@ -86,22 +86,31 @@ control (ErlDrvData p,
          char **rbuf,
          int rlen)
 {
+  pwd_drv_t *drv = (pwd_drv_t *)p;
   if (len)
     buf[len] = 0;
 
-  pwd_drv_t *drv = (pwd_drv_t *)p;
+  fprintf (drv->log, "cmd: %d\n", command);
+  fprintf (drv->log, "buf: %s\n", buf);
+  fflush (drv->log);
 
   switch (command)
     {
     case CMD_GET_PWUID:
-      return get_pwuid (drv, buf);
+      get_pwuid (drv, buf);
+      break;
     case CMD_GET_PWNAM:
-      return get_pwnam (drv, buf);
+      get_pwnam (drv, buf);
+      break;
     case CMD_GET_PWALL:
-      return get_pwall (drv);
+      get_pwall (drv);
+      break;
+    default:
+      send_error (drv, "error", "unknown_command");
+      break;
     }
 
-  return send_error (drv, "error", "unknown_command");
+  return 0;
 }
 
 static int 
