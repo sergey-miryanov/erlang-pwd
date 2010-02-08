@@ -41,7 +41,7 @@ start (ErlDrvPort port, char *cmd)
     {
       fprintf (stderr, "Couldn't create log file\n");
       fflush (stderr);
-      return 0;
+      return (ErlDrvData) -1;
     }
 
   pwd_drv_t *drv = (pwd_drv_t *)driver_alloc (sizeof (pwd_drv_t));
@@ -51,10 +51,8 @@ start (ErlDrvPort port, char *cmd)
       fflush (log);
       fclose (log);
 
-      return 0;
+      return (ErlDrvData) -1;
     }
-
-  memset (drv, 0, sizeof (pwd_drv_t));
 
   drv->port = port;
   drv->log  = log;
