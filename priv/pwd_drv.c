@@ -254,6 +254,7 @@ make_passwd (pwd_drv_t *drv, struct passwd *pwd, size_t *count)
       return 0;
     }
 
+  fill_passwd (result, pwd);
   return result;
 }
 
