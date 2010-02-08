@@ -53,7 +53,7 @@ get_all () ->
 
 %% --------------------------------------------------------------------
 %% @spec start_link () -> {ok, Pid} | ignore | {error, Error}
-%% @doc Starts DRMAA session
+%% @doc Starts driver
 %% @end
 %% --------------------------------------------------------------------
 -type (result () :: {'ok', pid ()} | 'ignore' | {'error', any ()}).
@@ -149,7 +149,7 @@ handle_call (Request, _From, State) ->
   {reply, {unknown, Request}, State}.
 
 control_drv (Port, Command) when is_port (Port) and is_integer (Command) ->
-  port_control (Port, Command, <<"_">>),
+  port_control (Port, Command, <<>>),
   wait_result (Port).
 
 control_drv (Port, Command, Data) 
