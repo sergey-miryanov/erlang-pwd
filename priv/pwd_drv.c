@@ -189,7 +189,6 @@ get_pwall (pwd_drv_t *drv)
 {
   setpwent ();
 
-  size_t result_count = 0;
   ErlDrvTermData *result = (ErlDrvTermData *) driver_alloc (sizeof (ErlDrvTermData) * passwd_term_count ());
   if (!result)
     {
@@ -201,12 +200,12 @@ get_pwall (pwd_drv_t *drv)
       return send_error (drv, "error", "Couldn't allocate memory for result");
     }
 
-  ErlDrvTermData *res = result;
-  struct passwd *pwd = getpwent ();
   size_t pwd_count = 0;
+  size_t result_count = 0;
+  struct passwd *pwd = getpwent ();
   while (pwd)
     {
-      fill_passwd (res, pwd);
+      fill_passwd (&result[pwd_count * passwd_term_count ()], pwd);
       result_count += passwd_term_count ();
       pwd_count++;
 
