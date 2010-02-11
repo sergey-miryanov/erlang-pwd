@@ -72,8 +72,7 @@ init ([]) ->
       Port = open_port ({spawn, "pwd_drv"}, [binary]),
       {ok, #state {port = Port}};
     {error, Error} ->
-      io:format ("Error loading pwd driver: ~p~n", [erl_ddll:format_error (Error)]),
-      {stop, failed}
+      {stop, string:join (["Error loading pwd driver: ", erl_ddll:format_error (Error)], "")}
   end.
 
 %% --------------------------------------------------------------------
